@@ -1,31 +1,3 @@
-// ============================================================
-// ADD THIS BLOCK AT THE VERY TOP OF YOUR JENKINSFILE
-// ============================================================
-properties([
-    pipelineTriggers([
-        triggers: [
-            // Keep your existing GitHub trigger (if any)
-            [$class: 'GitHubPushTrigger'],
-            
-            // Add Generic Webhook Trigger for AWS Batch
-            [
-                $class: 'GenericTrigger',
-                genericVariables: [
-                    [key: 'triggerSource', value: '$.source'],
-                    [key: 'modelVersion', value: '$.model_version']
-                ],
-                token: 'ct-trigger-token',  // Must match token in CT repo
-                // Optional: Print the payload for debugging
-                printContributedVariables: true,
-                printPostContent: true
-            ]
-        ]
-    ])
-])
-
-// ============================================================
-// YOUR EXISTING PIPELINE (starts here)
-// ============================================================
 pipeline {
     agent any
     
@@ -36,7 +8,7 @@ pipeline {
         AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
         
-        // ECS Configuration
+        // New: ECS Configuration
         AWS_REGION = 'us-east-1'
         ECS_CLUSTER = 'chest-ct-cluster'
         ECS_SERVICE = 'chest-ct-service'
@@ -44,23 +16,7 @@ pipeline {
     }
     
     stages {
-        // NEW STAGE: Check trigger source (optional, for debugging)
-        stage('Check Trigger Source') {
-            steps {
-                script {
-                    if (env.triggerSource == 'aws-batch') {
-                        echo "🔄 This deployment was triggered by AWS Batch retraining"
-                        echo "📦 New model version: ${env.modelVersion}"
-                    } else if (env.triggerSource == 'github-push') {
-                        echo "📦 This deployment was triggered by GitHub push"
-                    } else {
-                        echo "📦 This deployment was triggered manually or by another source"
-                    }
-                }
-            }
-        }
-        
-        // Checkout code
+        // NEW STAGE: Checkout code
         stage('Checkout') {
             steps {
                 checkout scm
@@ -68,22 +24,19 @@ pipeline {
             }
         }
         
-        // Download model from S3
+        // NEW STAGE: Download model from S3
         stage('Download Model from S3') {
             steps {
                 script {
                     sh """
-                        # Download the latest production model
-                        aws s3 cp s3://${MODEL_BUCKET}/production/model.h5 model.h5 || \
-                        aws s3 cp s3://${MODEL_BUCKET}/model.h5 model.h5 || \
-                        echo "No model found, using default"
+                        aws s3 cp s3://${MODEL_BUCKET}/model.h5 model.h5
                     """
                     echo "✅ Model downloaded from S3"
                 }
             }
         }
         
-        // Continuous Integration (optional)
+        // Keep: Continuous Integration (optional)
         stage('Continuous Integration') {
             steps {
                 script {
@@ -93,7 +46,7 @@ pipeline {
             }
         }
 
-        // Login to ECR
+        // Keep: Login to ECR (same but with region variable)
         stage('Login to ECR') {
             steps {
                 script {
@@ -102,7 +55,7 @@ pipeline {
             }
         }
 
-        // Build Image
+        // Keep: Build Image (same)
         stage('Build Image') {
             steps {
                 script {
@@ -111,7 +64,7 @@ pipeline {
             }
         }
 
-        // Push Image
+        // Keep: Push Image (same)
         stage('Push Image') {
             steps {
                 script {
@@ -120,7 +73,7 @@ pipeline {
             }
         }
 
-        // Deploy to ECS
+        // CHANGED: Deploy to ECS (instead of SSH + docker-compose)
         stage('Deploy to ECS') {
             steps {
                 script {
@@ -141,7 +94,7 @@ pipeline {
             }
         }
         
-        // Health Check
+        // NEW STAGE: Health Check (FIXED: escaped dollar sign)
         stage('Health Check') {
             steps {
                 script {
@@ -163,7 +116,6 @@ pipeline {
             ========================================
             ECS Cluster: ${ECS_CLUSTER}
             ECS Service: ${ECS_SERVICE}
-            Trigger Source: ${env.triggerSource ?: 'manual'}
             ========================================
             """
         }
@@ -181,3 +133,4 @@ pipeline {
         }
     }
 }
+
