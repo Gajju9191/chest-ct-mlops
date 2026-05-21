@@ -1,14 +1,25 @@
+properties([
+    pipelineTriggers([
+        triggers: [
+            [
+                $class: 'GenericTrigger',
+                genericVariables: [
+                    [key: 'triggerSource', value: '$.source']
+                ],
+                token: 'ct-trigger-token'
+            ]
+        ]
+    ])
+])
+
 pipeline {
     agent any
     
     environment {
-        // AWS Credentials (keep same)
         ECR_REPOSITORY = credentials('ECR_REPOSITORY')
         AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')
         AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
-        
-        // New: ECS Configuration
         AWS_REGION = 'us-east-1'
         ECS_CLUSTER = 'chest-ct-cluster'
         ECS_SERVICE = 'chest-ct-service'
@@ -16,7 +27,18 @@ pipeline {
     }
     
     stages {
-        // NEW STAGE: Checkout code
+        stage('Trigger Info') {
+            steps {
+                script {
+                    if (env.triggerSource == 'ct-trigger') {
+                        echo "🔄 Build triggered by Continuous Training (AWS Batch)"
+                    } else {
+                        echo "📦 Build triggered manually or by other source"
+                    }
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 checkout scm
@@ -24,19 +46,20 @@ pipeline {
             }
         }
         
-        // NEW STAGE: Download model from S3
         stage('Download Model from S3') {
             steps {
                 script {
                     sh """
-                        aws s3 cp s3://${MODEL_BUCKET}/model.h5 model.h5
+                        # Try production path first (from CT), then fallback to root
+                        aws s3 cp s3://${MODEL_BUCKET}/production/model.h5 model.h5 || \
+                        aws s3 cp s3://${MODEL_BUCKET}/model.h5 model.h5 || \
+                        echo "No model found, using default"
                     """
-                    echo "✅ Model downloaded from S3"
+                    echo "✅ Model download attempted"
                 }
             }
         }
         
-        // Keep: Continuous Integration (optional)
         stage('Continuous Integration') {
             steps {
                 script {
@@ -46,7 +69,6 @@ pipeline {
             }
         }
 
-        // Keep: Login to ECR (same but with region variable)
         stage('Login to ECR') {
             steps {
                 script {
@@ -55,7 +77,6 @@ pipeline {
             }
         }
 
-        // Keep: Build Image (same)
         stage('Build Image') {
             steps {
                 script {
@@ -64,7 +85,6 @@ pipeline {
             }
         }
 
-        // Keep: Push Image (same)
         stage('Push Image') {
             steps {
                 script {
@@ -73,7 +93,6 @@ pipeline {
             }
         }
 
-        // CHANGED: Deploy to ECS (instead of SSH + docker-compose)
         stage('Deploy to ECS') {
             steps {
                 script {
@@ -94,7 +113,6 @@ pipeline {
             }
         }
         
-        // NEW STAGE: Health Check (FIXED: escaped dollar sign)
         stage('Health Check') {
             steps {
                 script {
@@ -116,6 +134,7 @@ pipeline {
             ========================================
             ECS Cluster: ${ECS_CLUSTER}
             ECS Service: ${ECS_SERVICE}
+            Trigger Source: ${env.triggerSource ?: 'manual'}
             ========================================
             """
         }
@@ -129,7 +148,7 @@ pipeline {
             """
         }
         always {
-            sh 'docker system prune -f'
+            sh 'docker system prune -f || true'
         }
     }
 }
