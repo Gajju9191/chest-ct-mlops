@@ -11,17 +11,84 @@ provider "aws" {
   region = var.aws_region
 }
 
+# ============================================
+# S3 Buckets
+# ============================================
+resource "aws_s3_bucket" "models" {
+  bucket = var.model_bucket
+  force_destroy = true
+
+  tags = {
+    Name        = "chest-ct-models"
+    Environment = "production"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "models" {
+  bucket = aws_s3_bucket.models.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket" "raw_data" {
+  bucket = var.raw_data_bucket
+  force_destroy = true
+
+  tags = {
+    Name        = "chest-ct-raw-data"
+    Environment = "production"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "raw_data" {
+  bucket = aws_s3_bucket.raw_data.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# ============================================
 # ECR Repository
+# ============================================
 resource "aws_ecr_repository" "app" {
   name = "chest-ct-api"
+  force_delete = true
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "chest-ct-api"
+    Environment = "production"
+  }
 }
 
+# ============================================
 # ECS Cluster
+# ============================================
 resource "aws_ecs_cluster" "main" {
   name = "chest-ct-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
+
+  tags = {
+    Name        = "chest-ct-cluster"
+    Environment = "production"
+  }
 }
 
+# ============================================
 # Task Definition
+# ============================================
 resource "aws_ecs_task_definition" "app" {
   family                   = "chest-ct-api"
   network_mode             = "awsvpc"
@@ -45,13 +112,45 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "MODEL_BUCKET"
           value = var.model_bucket
+        },
+        {
+          name  = "AWS_REGION"
+          value = var.aws_region
         }
       ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = "/ecs/chest-ct-api"
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
     }
   ])
+
+  tags = {
+    Name        = "chest-ct-api-task"
+    Environment = "production"
+  }
 }
 
+# ============================================
+# CloudWatch Log Group
+# ============================================
+resource "aws_cloudwatch_log_group" "ecs" {
+  name              = "/ecs/chest-ct-api"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "chest-ct-api-logs"
+    Environment = "production"
+  }
+}
+
+# ============================================
 # ECS Service
+# ============================================
 resource "aws_ecs_service" "app" {
   name            = "chest-ct-service"
   cluster         = aws_ecs_cluster.main.id
@@ -72,15 +171,27 @@ resource "aws_ecs_service" "app" {
   }
 
   depends_on = [aws_lb_listener.http]
+
+  tags = {
+    Name        = "chest-ct-service"
+    Environment = "production"
+  }
 }
 
+# ============================================
 # Load Balancer
+# ============================================
 resource "aws_lb" "main" {
   name               = "chest-ct-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.lb.id]
   subnets            = var.subnet_ids
+
+  tags = {
+    Name        = "chest-ct-alb"
+    Environment = "production"
+  }
 }
 
 resource "aws_lb_target_group" "app" {
@@ -99,6 +210,11 @@ resource "aws_lb_target_group" "app" {
     path                = "/health"
     matcher             = "200"
   }
+
+  tags = {
+    Name        = "chest-ct-tg"
+    Environment = "production"
+  }
 }
 
 resource "aws_lb_listener" "http" {
@@ -110,9 +226,16 @@ resource "aws_lb_listener" "http" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app.arn
   }
+
+  tags = {
+    Name        = "chest-ct-listener"
+    Environment = "production"
+  }
 }
 
+# ============================================
 # Security Groups
+# ============================================
 resource "aws_security_group" "ecs_tasks" {
   name        = "chest-ct-ecs-tasks-sg"
   description = "Security group for ECS tasks"
@@ -123,6 +246,7 @@ resource "aws_security_group" "ecs_tasks" {
     to_port         = 8080
     protocol        = "tcp"
     security_groups = [aws_security_group.lb.id]
+    description     = "Allow traffic from load balancer"
   }
 
   egress {
@@ -130,6 +254,12 @@ resource "aws_security_group" "ecs_tasks" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = {
+    Name        = "chest-ct-ecs-tasks-sg"
+    Environment = "production"
   }
 }
 
@@ -143,6 +273,7 @@ resource "aws_security_group" "lb" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTP from anywhere"
   }
 
   egress {
@@ -150,10 +281,18 @@ resource "aws_security_group" "lb" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = {
+    Name        = "chest-ct-lb-sg"
+    Environment = "production"
   }
 }
 
+# ============================================
 # IAM Roles
+# ============================================
 resource "aws_iam_role" "ecs_task_role" {
   name = "chest-ct-ecs-task-role"
 
@@ -169,6 +308,11 @@ resource "aws_iam_role" "ecs_task_role" {
       }
     ]
   })
+
+  tags = {
+    Name        = "chest-ct-ecs-task-role"
+    Environment = "production"
+  }
 }
 
 resource "aws_iam_role" "ecs_execution_role" {
@@ -186,6 +330,11 @@ resource "aws_iam_role" "ecs_execution_role" {
       }
     ]
   })
+
+  tags = {
+    Name        = "chest-ct-ecs-execution-role"
+    Environment = "production"
+  }
 }
 
 # Execution Role Policies (for ECS itself)
@@ -194,41 +343,46 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Custom policy for S3 access (least privilege)
+resource "aws_iam_policy" "ecs_task_s3_access" {
+  name        = "chest-ct-ecs-task-s3-access"
+  description = "Allow ECS tasks to read models from S3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.models.arn,
+          "${aws_s3_bucket.models.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
 # Task Role Policies (for your application code)
-resource "aws_iam_role_policy_attachment" "ecs_task_ecr_full" {
+resource "aws_iam_role_policy_attachment" "ecs_task_s3_access" {
   role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+  policy_arn = aws_iam_policy.ecs_task_s3_access.arn
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_ec2_full" {
+resource "aws_iam_role_policy_attachment" "ecs_task_ecr_readonly" {
   role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_ecs_full" {
+resource "aws_iam_role_policy_attachment" "ecs_task_cloudwatch" {
   role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_s3_full" {
-  role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_cloudwatch_full" {
-  role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_elb_full" {
-  role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_iam_full" {
-  role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/IAMFullAccess"
-}
-
-# Data source for current account ID
+# ============================================
+# Data Sources
+# ============================================
 data "aws_caller_identity" "current" {}

@@ -1,4 +1,3 @@
-
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -34,7 +33,13 @@ variable "desired_count" {
 }
 
 variable "model_bucket" {
-  description = "S3 bucket name for model"
+  description = "S3 bucket name for trained models"
   type        = string
-  default     = "chest-ct-models"
+  default     = "chest-models-gajju"
+}
+
+variable "raw_data_bucket" {
+  description = "S3 bucket name for raw training data"
+  type        = string
+  default     = "chest-raw-data-gajju"
 }
