@@ -1,5 +1,5 @@
 [core]
     remote = storage
 ['remote "storage"']
-    url = s3://chest-ct-raw-data/dvc-cache
+    url = s3://chest-models-gajju/dvc-cache
     region = us-east-1
