@@ -32,14 +32,16 @@ variable "desired_count" {
   default     = 1
 }
 
-variable "model_bucket" {
+# S3 Bucket for trained models
+variable "models_bucket" {
   description = "S3 bucket name for trained models"
   type        = string
-  default     = "chest-models-gajju"
+  default     = "chest-ct-models-155407238004"
 }
 
+# S3 Bucket for raw training data
 variable "raw_data_bucket" {
   description = "S3 bucket name for raw training data"
   type        = string
-  default     = "chest-raw-data-gajju"
+  default     = "chest-models-gajju"
 }

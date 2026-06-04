@@ -15,7 +15,7 @@ provider "aws" {
 # S3 Buckets
 # ============================================
 resource "aws_s3_bucket" "models" {
-  bucket = var.model_bucket
+  bucket = var.models_bucket
   force_destroy = true
 
   tags = {
@@ -111,7 +111,7 @@ resource "aws_ecs_task_definition" "app" {
       environment = [
         {
           name  = "MODEL_BUCKET"
-          value = var.model_bucket
+          value = var.models_bucket
         },
         {
           name  = "AWS_REGION"
