@@ -6,6 +6,11 @@ from flask_cors import CORS, cross_origin
 from pathlib import Path
 import boto3
 import tensorflow as tf
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add src to path
 sys.path.insert(0, str(Path.cwd() / "src"))
@@ -30,10 +35,10 @@ def download_model_from_s3():
     try:
         s3 = boto3.client('s3')
         s3.download_file(MODEL_BUCKET, MODEL_KEY, LOCAL_MODEL_PATH)
-        print(f"✅ Model downloaded from s3://{MODEL_BUCKET}/{MODEL_KEY}")
+        logger.info(f"✅ Model downloaded from s3://{MODEL_BUCKET}/{MODEL_KEY}")
         return tf.keras.models.load_model(LOCAL_MODEL_PATH)
     except Exception as e:
-        print(f"❌ Failed to download model from S3: {e}")
+        logger.error(f"❌ Failed to download model from S3: {e}")
         return None
 
 
@@ -51,13 +56,19 @@ class ClientApp:
         if self.model is not None:
             # Set model in classifier
             self.classifier.model = self.model
-            print("✅ Model loaded from S3")
+            logger.info("✅ Model loaded from S3")
+            return True
         else:
             # Fallback to local model loading
-            print("⚠️ Trying to load local model...")
-            self.classifier.load_model()
-            self.model = self.classifier.model
-            print("✅ Model loaded locally")
+            logger.warning("⚠️ Trying to load local model...")
+            try:
+                self.classifier.load_model()
+                self.model = self.classifier.model
+                logger.info("✅ Model loaded locally")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Failed to load model locally: {e}")
+                return False
 
 
 @app.route("/", methods=['GET'])
@@ -154,9 +165,13 @@ def health():
     })
 
 
+# Create global instance
+clApp = ClientApp()
+
 if __name__ == "__main__":
-    clApp = ClientApp()
     # Load model on startup (will download from S3)
-    clApp.load_model()
-    print(f"Model loaded: {clApp.model is not None}")
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    model_loaded = clApp.load_model()
+    port = int(os.environ.get('PORT', 8080))
+    logger.info(f"Starting Flask app on port {port}")
+    logger.info(f"Model loaded: {model_loaded}")
+    app.run(host='0.0.0.0', port=port, debug=False)
