@@ -1,0 +1,15 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecs:ListClusters",
+                "ecs:DescribeClusters",
+                "ecs:ListContainerInstances",
+                "ecs:DeregisterContainerInstance"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
