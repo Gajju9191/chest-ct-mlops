@@ -23,7 +23,7 @@ pipeline {
         AWS_REGION = 'us-east-1'
         ECS_CLUSTER = 'chest-ct-cluster'
         ECS_SERVICE = 'chest-ct-service'
-        MODEL_BUCKET = 'chest-ct-models-155407238003'
+        MODEL_BUCKET = 'chest-ct-models-155407238004'
     }
     
     stages {
