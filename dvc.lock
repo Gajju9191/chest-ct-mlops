@@ -26,7 +26,7 @@ stages:
       size: 764
     - path: params.yaml
       hash: md5
-      md5: a83859c7ace886f5b50a0be85da937cc
+      md5: 5dea332e8b4e8712aad4539d8873b30d
       size: 169
     - path: src/cnnClassifier/pipeline/stage_02_prepare_base_model.py
       hash: md5
@@ -45,7 +45,7 @@ stages:
     outs:
     - path: artifacts/prepare_base_model
       hash: md5
-      md5: 1d4fd22dca1fac15bacd04d2d3b9237f.dir
+      md5: 27c1abbaff8c85610e2cb039679ef63d.dir
       size: 118059248
       nfiles: 2
   training:
@@ -58,7 +58,7 @@ stages:
       nfiles: 343
     - path: artifacts/prepare_base_model
       hash: md5
-      md5: 1d4fd22dca1fac15bacd04d2d3b9237f.dir
+      md5: 27c1abbaff8c85610e2cb039679ef63d.dir
       size: 118059248
       nfiles: 2
     - path: config/config.yaml
@@ -67,7 +67,7 @@ stages:
       size: 764
     - path: params.yaml
       hash: md5
-      md5: a83859c7ace886f5b50a0be85da937cc
+      md5: 5dea332e8b4e8712aad4539d8873b30d
       size: 169
     - path: src/cnnClassifier/pipeline/stage_03_model_trainer.py
       hash: md5
@@ -77,7 +77,7 @@ stages:
       params.yaml:
         AUGMENTATION: true
         BATCH_SIZE: 12
-        EPOCHS: 4
+        EPOCHS: 5
         IMAGE_SIZE:
         - 224
         - 224
@@ -86,7 +86,7 @@ stages:
     outs:
     - path: artifacts/training/model.h5
       hash: md5
-      md5: dff004503cfe27426fb287c7c16d369e
+      md5: 900b1419408b685d8be424ce01d64ec0
       size: 59341712
   evaluation:
     cmd: python src/cnnClassifier/pipeline/stage_04_model_evaluation.py
@@ -98,7 +98,7 @@ stages:
       nfiles: 343
     - path: artifacts/training/model.h5
       hash: md5
-      md5: dff004503cfe27426fb287c7c16d369e
+      md5: 900b1419408b685d8be424ce01d64ec0
       size: 59341712
     - path: config/config.yaml
       hash: md5
@@ -106,7 +106,7 @@ stages:
       size: 764
     - path: params.yaml
       hash: md5
-      md5: a83859c7ace886f5b50a0be85da937cc
+      md5: 5dea332e8b4e8712aad4539d8873b30d
       size: 169
     - path: src/cnnClassifier/pipeline/stage_04_model_evaluation.py
       hash: md5
@@ -123,6 +123,6 @@ stages:
     outs:
     - path: artifacts/evaluation
       hash: md5
-      md5: a5e50892e4b594971c21aee99ababd82.dir
-      size: 96533
+      md5: 5c74d6d5ed53670777ea2bb84c1f5185.dir
+      size: 96532
       nfiles: 2
