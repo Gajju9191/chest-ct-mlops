@@ -1,9 +1,31 @@
-
+# Training Parameters
 AUGMENTATION: True
-IMAGE_SIZE: [224, 224, 3] # as per VGG 16 model
+IMAGE_SIZE: [224, 224, 3]
 BATCH_SIZE: 12
 INCLUDE_TOP: False
 EPOCHS: 5
 CLASSES: 2
 WEIGHTS: imagenet
 LEARNING_RATE: 0.001
+
+# ✅ NEW: Feature Engineering
+FEATURE_ENGINEERING:
+  use_pca: True
+  pca_components: 50
+  use_deep_features: True
+  use_radiomic_features: True
+  feature_output: "artifacts/features"
+
+# ✅ NEW: Drift Detection
+DRIFT_DETECTION:
+  threshold: 0.05
+  test_type: 'ks'
+  feature_weights: null
+  drift_output: "artifacts/drift_reports"
+
+# ✅ NEW: Data Validation
+DATA_VALIDATION:
+  min_image_size: [224, 224]
+  blur_threshold: 50
+  max_artifacts: 0
+  validate_labels: True

@@ -2,6 +2,14 @@ artifacts_root: artifacts
 
 mlflow_uri: https://dagshub.com/Gajju9191/chest-ct-ecs.mlflow
 
+# ✅ NEW: Secrets Manager
+secrets_manager:
+  region: us-east-1
+  secrets:
+    - chest-ct/mlflow/credentials
+    - chest-ct/s3/credentials
+    - chest-ct/jenkins/credentials
+
 data_ingestion:
   root_dir: artifacts/data_ingestion
   source_URL: s3://chest-ct-raw-data/chest-data.zip
@@ -13,10 +21,26 @@ prepare_base_model:
   base_model_path: artifacts/prepare_base_model/base_model.h5
   updated_base_model_path: artifacts/prepare_base_model/base_model_updated.h5
 
+# ✅ NEW: Feature Engineering
+feature_engineering:
+  root_dir: artifacts/features
+  features_file: artifacts/features/features.csv
+  metadata_file: artifacts/features/metadata.csv
+  scaler_file: artifacts/features/scaler.pkl
+  pca_file: artifacts/features/pca.pkl
+
+# ✅ NEW: Training Drift
+training_drift:
+  root_dir: artifacts/drift_reports
+  report_file: artifacts/drift_reports/latest_drift.json
+  metrics_file: artifacts/drift_reports/drift_metrics.json
+
+# ✅ UPDATE: Training
 training:
   root_dir: artifacts/training
   trained_model_path: artifacts/training/model.h5
 
+# ✅ UPDATE: Evaluation
 evaluation:
   root_dir: artifacts/evaluation
   metrics_file: artifacts/evaluation/metrics.json

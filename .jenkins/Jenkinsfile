@@ -1,40 +1,32 @@
-properties([
-    pipelineTriggers([
-        triggers: [
-            [
-                $class: 'GenericTrigger',
-                genericVariables: [
-                    [key: 'triggerSource', value: '$.source']
-                ],
-                token: 'ct-trigger-token'
-            ]
-        ]
-    ])
-])
-
 pipeline {
     agent any
     
     environment {
-        ECR_REPOSITORY = credentials('ECR_REPOSITORY')
-        AWS_ACCOUNT_ID = credentials('AWS_ACCOUNT_ID')
-        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
-        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
         AWS_REGION = 'us-east-1'
+        ECR_REPOSITORY = 'chest-ct-api'
         ECS_CLUSTER = 'chest-ct-cluster'
         ECS_SERVICE = 'chest-ct-service'
-        MODEL_BUCKET = 'chest-ct-models-155407238004'
     }
     
     stages {
-        stage('Trigger Info') {
+        stage('Fetch Secrets from AWS Secrets Manager') {
             steps {
                 script {
-                    if (env.triggerSource == 'ct-trigger') {
-                        echo "🔄 Build triggered by Continuous Training (AWS Batch)"
-                    } else {
-                        echo "📦 Build triggered manually or by other source"
-                    }
+                    // Fetch secrets using AWS CLI
+                    def secrets = sh(
+                        script: """
+                            aws secretsmanager get-secret-value \
+                                --secret-id chest-ct/deployment/credentials \
+                                --query SecretString \
+                                --output text
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    def secretsJson = readJSON text: secrets
+                    env.MODEL_BUCKET = secretsJson.models_bucket
+                    env.MLFLOW_TRACKING_URI = secretsJson.mlflow_tracking_uri
+                    env.AWS_ACCOUNT_ID = secretsJson.aws_account_id
                 }
             }
         }
@@ -46,33 +38,46 @@ pipeline {
             }
         }
         
-        stage('Download Model from S3') {
+        stage('Run DVC Pipeline') {
             steps {
                 script {
                     sh """
-                        # Try production path first (from CT), then fallback to root
-                        aws s3 cp s3://${MODEL_BUCKET}/production/model.h5 model.h5 || \
-                        aws s3 cp s3://${MODEL_BUCKET}/model.h5 model.h5 || \
-                        echo "No model found, using default"
+                        # Activate environment
+                        conda activate chest-ct-ecs || source activate chest-ct-ecs
+                        
+                        # Pull data
+                        dvc pull
+                        
+                        # Run full pipeline with new stages
+                        dvc repro
+                        
+                        # Push artifacts
+                        dvc push
                     """
-                    echo "✅ Model download attempted"
+                    echo "✅ DVC pipeline completed"
                 }
             }
         }
         
-        stage('Continuous Integration') {
+        stage('Upload Model to S3') {
             steps {
                 script {
-                    echo "Linting repository"
-                    echo "Running unit tests"
+                    sh """
+                        aws s3 cp artifacts/training/model.h5 s3://${env.MODEL_BUCKET}/model.h5
+                        aws s3 cp artifacts/training/model.h5 s3://${env.MODEL_BUCKET}/production/model.h5
+                        
+                        # Also upload drift report
+                        aws s3 cp artifacts/drift_reports/latest_drift.json s3://${env.MODEL_BUCKET}/drift_reports/latest_drift.json
+                    """
+                    echo "✅ Model uploaded to S3"
                 }
             }
         }
-
+        
         stage('Login to ECR') {
             steps {
                 script {
-                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
                 }
             }
         }
@@ -88,7 +93,10 @@ pipeline {
         stage('Push Image') {
             steps {
                 script {
-                    sh "docker push ${ECR_REPOSITORY}:latest"
+                    sh """
+                        docker tag ${ECR_REPOSITORY}:latest ${env.AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
+                        docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
+                    """
                 }
             }
         }
@@ -118,7 +126,7 @@ pipeline {
                 script {
                     sh """
                         sleep 10
-                        curl -f http://\$(cd terraform && terraform output -raw load_balancer_dns 2>/dev/null || echo 'pending')/health || echo 'Health check pending'
+                        curl -f http://\$(cd terraform && terraform output -raw load_balancer_dns 2>/dev/null || echo 'pending')/health || echo '⚠️ Health check pending'
                     """
                     echo "✅ Health check completed"
                 }
@@ -134,7 +142,7 @@ pipeline {
             ========================================
             ECS Cluster: ${ECS_CLUSTER}
             ECS Service: ${ECS_SERVICE}
-            Trigger Source: ${env.triggerSource ?: 'manual'}
+            Model Bucket: ${env.MODEL_BUCKET}
             ========================================
             """
         }
@@ -152,4 +160,3 @@ pipeline {
         }
     }
 }
-

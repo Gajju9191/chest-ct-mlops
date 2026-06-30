@@ -8,15 +8,16 @@ import boto3
 import tensorflow as tf
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # Add src to path
 sys.path.insert(0, str(Path.cwd() / "src"))
 
 from cnnClassifier.utils.common import decodeImage
 from cnnClassifier.pipeline.prediction import PredictionPipeline
+from cnnClassifier.utils.secrets_manager import SecretsManager
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 os.putenv('LANG', 'en_US.UTF-8')
 os.putenv('LC_ALL', 'en_US.UTF-8')
@@ -24,8 +25,11 @@ os.putenv('LC_ALL', 'en_US.UTF-8')
 app = Flask(__name__)
 CORS(app)
 
-# S3 Configuration
-MODEL_BUCKET = os.environ.get('MODEL_BUCKET', 'chest-ct-models-155407238004')
+# Initialize Secrets Manager
+secrets = SecretsManager()
+
+# Get model bucket from secrets
+MODEL_BUCKET = secrets.get_s3_credentials().get('models_bucket', 'chest-ct-models-155407238004')
 MODEL_KEY = os.environ.get('MODEL_KEY', 'model.h5')
 LOCAL_MODEL_PATH = '/tmp/model.h5'
 
@@ -54,12 +58,10 @@ class ClientApp:
         self.model = download_model_from_s3()
         
         if self.model is not None:
-            # Set model in classifier
             self.classifier.model = self.model
             logger.info("✅ Model loaded from S3")
             return True
         else:
-            # Fallback to local model loading
             logger.warning("⚠️ Trying to load local model...")
             try:
                 self.classifier.load_model()
@@ -81,9 +83,7 @@ def home():
 @cross_origin()
 def trainRoute():
     try:
-        # Run DVC pipeline to retrain model
         os.system("dvc repro")
-        # Reload model after training
         clApp.load_model()
         return "Training done successfully! Model reloaded."
     except Exception as e:
@@ -94,18 +94,14 @@ def trainRoute():
 @cross_origin()
 def predictRoute():
     try:
-        # Get image from request (supports both JSON and form-data)
         if request.is_json:
             image = request.json['image']
             decodeImage(image, clApp.filename)
         else:
-            # Handle file upload
             file = request.files['image']
             file.save(clApp.filename)
         
-        # Make prediction
         result = clApp.classifier.predict()
-        
         return jsonify(result)
     
     except Exception as e:
@@ -116,7 +112,6 @@ def predictRoute():
 @cross_origin()
 def predictBatchRoute():
     try:
-        # Check if multiple files are uploaded
         if 'images' not in request.files:
             return jsonify({"error": "No images provided"}), 400
         
@@ -131,18 +126,11 @@ def predictBatchRoute():
             if file.filename == '':
                 continue
                 
-            # Save file temporarily
             file.save(clApp.filename)
-            
-            # Make prediction
             result = clApp.classifier.predict()
-            
-            # Add filename to result
             result["filename"] = file.filename
-            
             results.append(result)
         
-        # Clean up
         if os.path.exists(clApp.filename):
             os.remove(clApp.filename)
         
@@ -169,7 +157,6 @@ def health():
 clApp = ClientApp()
 
 if __name__ == "__main__":
-    # Load model on startup (will download from S3)
     model_loaded = clApp.load_model()
     port = int(os.environ.get('PORT', 8080))
     logger.info(f"Starting Flask app on port {port}")

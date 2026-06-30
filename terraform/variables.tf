@@ -45,3 +45,40 @@ variable "raw_data_bucket" {
   type        = string
   default     = "chest-models-gajju"
 }
+
+# ✅ NEW: Secrets Manager variables
+variable "dagshub_username" {
+  description = "DAGsHub username for MLflow tracking"
+  type        = string
+  default     = "Gajju9191"
+}
+
+variable "dagshub_token" {
+  description = "DAGsHub access token for MLflow tracking"
+  type        = string
+  sensitive   = true
+}
+
+variable "jenkins_url" {
+  description = "Jenkins server URL"
+  type        = string
+  sensitive   = true
+}
+
+variable "jenkins_token" {
+  description = "Jenkins webhook token"
+  type        = string
+  sensitive   = true
+}
+
+variable "jenkins_username" {
+  description = "Jenkins username"
+  type        = string
+  default     = "Gajanan Wagalgave"
+}
+
+variable "jenkins_api_token" {
+  description = "Jenkins API token"
+  type        = string
+  sensitive   = true
+}

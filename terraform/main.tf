@@ -337,13 +337,11 @@ resource "aws_iam_role" "ecs_execution_role" {
   }
 }
 
-# Execution Role Policies (for ECS itself)
 resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
   role       = aws_iam_role.ecs_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Custom policy for S3 access (least privilege)
 resource "aws_iam_policy" "ecs_task_s3_access" {
   name        = "chest-ct-ecs-task-s3-access"
   description = "Allow ECS tasks to read models from S3"
@@ -366,7 +364,6 @@ resource "aws_iam_policy" "ecs_task_s3_access" {
   })
 }
 
-# Task Role Policies (for your application code)
 resource "aws_iam_role_policy_attachment" "ecs_task_s3_access" {
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = aws_iam_policy.ecs_task_s3_access.arn
