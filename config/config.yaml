@@ -12,7 +12,7 @@ secrets_manager:
 
 data_ingestion:
   root_dir: artifacts/data_ingestion
-  source_URL: s3://chest-ct-raw-data/chest-data.zip
+  source_URL: s3://chest-models-gajju/chest-data.zip
   local_data_file: artifacts/data_ingestion/data.zip
   unzip_dir: artifacts/data_ingestion
 

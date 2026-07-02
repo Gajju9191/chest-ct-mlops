@@ -22,7 +22,6 @@ stages:
     outs:
       - artifacts/prepare_base_model
 
-  # ✅ NEW: Feature Engineering
   feature_engineering:
     cmd: python src/cnnClassifier/pipeline/stage_03_feature_engineering.py
     deps:
@@ -39,9 +38,8 @@ stages:
     outs:
       - artifacts/features
     metrics:
-      - artifacts/features/feature_stats.json
+      - artifacts/feature_stats.json
 
-  # ✅ NEW: Training Drift
   training_drift:
     cmd: python src/cnnClassifier/pipeline/stage_04_training_drift.py
     deps:
@@ -55,9 +53,8 @@ stages:
     outs:
       - artifacts/drift_reports
     metrics:
-      - artifacts/drift_reports/drift_metrics.json
+      - artifacts/drift_metrics.json
 
-  # ✅ UPDATE: Training (now uses features instead of raw data)
   training:
     cmd: python src/cnnClassifier/pipeline/stage_05_model_trainer.py
     deps:
@@ -76,7 +73,7 @@ stages:
     outs:
       - artifacts/training/model.h5
 
-  # ✅ UPDATE: Evaluation
+  # ✅ FIXED: Evaluation - Separate output for metrics
   evaluation:
     cmd: python src/cnnClassifier/pipeline/stage_06_model_evaluation.py
     deps:
@@ -90,6 +87,6 @@ stages:
       - BATCH_SIZE
       - CLASSES
     metrics:
-      - artifacts/evaluation/metrics.json
+      - artifacts/evaluation_metrics.json  # ✅ MOVED: Outside evaluation directory
     outs:
       - artifacts/evaluation
