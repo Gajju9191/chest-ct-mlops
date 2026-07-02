@@ -1,4 +1,3 @@
-
 """
 Training drift detection component for DVC pipeline.
 """
@@ -15,7 +14,8 @@ from cnnClassifier import logger
 class TrainingDriftDetector:
     def __init__(self, config):
         self.config = config
-        self.threshold = config.get('threshold', 0.05)
+        # ✅ FIXED: Direct attribute access instead of .get()
+        self.threshold = config.threshold
         self.reference_data = None
         
     def load_reference_data(self, reference_path: Path):

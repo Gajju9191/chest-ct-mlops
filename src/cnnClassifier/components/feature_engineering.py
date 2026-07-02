@@ -1,6 +1,6 @@
 """
 Feature engineering component for DVC pipeline.
-Extracts radiomic and deep features from CT scans.
+Extracts radiomic and deep features from CT scans using VGG16.
 """
 import numpy as np
 import pandas as pd
@@ -12,7 +12,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from skimage.feature import graycomatrix, graycoprops
 import mlflow
-import logging
 import json
 
 from cnnClassifier import logger
@@ -25,9 +24,9 @@ class FeatureEngineering:
         self.feature_names = []
         
     def get_base_model(self):
-        """Load pre-trained model for deep feature extraction"""
+        """Load pre-trained VGG16 model for deep feature extraction"""
         if not hasattr(self, 'base_model'):
-            self.base_model = tf.keras.applications.MobileNetV2(
+            self.base_model = tf.keras.applications.VGG16(
                 weights='imagenet',
                 include_top=False,
                 pooling='avg'
@@ -91,14 +90,14 @@ class FeatureEngineering:
             return {}
     
     def extract_deep_features(self, image_path: Path) -> np.ndarray:
-        """Extract deep features using pre-trained model"""
+        """Extract deep features using VGG16"""
         try:
             img = cv2.imread(str(image_path))
             if img is None:
                 return None
             
             img = cv2.resize(img, (224, 224))
-            img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
+            img = tf.keras.applications.vgg16.preprocess_input(img)
             img = np.expand_dims(img, axis=0)
             
             model = self.get_base_model()
@@ -177,7 +176,7 @@ class FeatureEngineering:
         """Run the full feature engineering pipeline"""
         logger.info("Starting feature engineering...")
         
-        # ✅ FIXED: Direct attribute access instead of .get()
+        # Direct attribute access (not .get())
         data_path = Path(self.config.training_data)
         
         if not data_path.exists():

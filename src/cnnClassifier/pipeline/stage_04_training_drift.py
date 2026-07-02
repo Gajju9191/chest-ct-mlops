@@ -1,7 +1,4 @@
-
-"""
-Training Drift Detection Pipeline Stage
-"""
+# src/cnnClassifier/pipeline/stage_04_training_drift.py
 from pathlib import Path
 from cnnClassifier.config.configuration import ConfigurationManager
 from cnnClassifier.components.training_drift import TrainingDriftDetector
@@ -15,7 +12,7 @@ class TrainingDriftPipeline:
     
     def main(self):
         try:
-            logger.info(f"🚀 Starting {STAGE_NAME}")
+            logger.info(f"Starting {STAGE_NAME}")
             
             config = ConfigurationManager()
             
@@ -31,11 +28,11 @@ class TrainingDriftPipeline:
                 detector.load_reference_data(reference_path)
             
             # Detect drift
-            new_data_path = Path("artifacts/features/features.csv")
+            new_data_path = Path(drift_config.features_file)
             report = detector.detect_drift(new_data_path)
             
             # Save report
-            output_path = Path(drift_config.get('report_file', 'artifacts/drift_reports/latest_drift.json'))
+            output_path = Path(drift_config.report_file)
             detector.save_report(report, output_path)
             
             # Save reference for next time
@@ -43,11 +40,11 @@ class TrainingDriftPipeline:
             if detector.reference_data is not None:
                 detector.reference_data.to_csv(reference_path, index=False)
             
-            logger.info(f"✅ {STAGE_NAME} completed successfully!")
-            logger.info(f"📊 Drift: {report['drift_percentage']:.1f}% - {report['recommendation']}")
+            logger.info(f"{STAGE_NAME} completed successfully!")
+            logger.info(f"Drift: {report['drift_percentage']:.1f}% - {report['recommendation']}")
             
         except Exception as e:
-            logger.error(f"❌ {STAGE_NAME} failed: {e}")
+            logger.error(f"{STAGE_NAME} failed: {e}")
             raise e
 
 if __name__ == '__main__':
