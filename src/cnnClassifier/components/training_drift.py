@@ -14,7 +14,7 @@ from cnnClassifier import logger
 class TrainingDriftDetector:
     def __init__(self, config):
         self.config = config
-        # ✅ FIXED: Direct attribute access instead of .get()
+        # Direct attribute access
         self.threshold = config.threshold
         self.reference_data = None
         
@@ -54,11 +54,13 @@ class TrainingDriftDetector:
             )
             
             drift_detected = p_value < self.threshold
+            
+            # ✅ Convert numpy types to Python native types for JSON serialization
             results.append({
-                'feature': feature,
-                'p_value': p_value,
-                'statistic': stat,
-                'drift_detected': drift_detected
+                'feature': str(feature),
+                'p_value': float(p_value) if hasattr(p_value, 'item') else p_value,
+                'statistic': float(stat) if hasattr(stat, 'item') else stat,
+                'drift_detected': bool(drift_detected) if hasattr(drift_detected, 'item') else drift_detected
             })
             
             if drift_detected:
@@ -78,24 +80,25 @@ class TrainingDriftDetector:
                 })
                 for result in results:
                     mlflow.log_metric(f"p_value_{result['feature']}", result['p_value'])
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not log to MLflow: {e}")
         
         return self._create_report(new_data, results)
     
     def _create_report(self, data, results):
-        """Create drift report"""
+        """Create drift report with JSON-serializable types"""
         total_features = len(results)
         drifted_features = sum(1 for r in results if r['drift_detected'])
         drift_pct = (drifted_features / total_features) * 100 if total_features > 0 else 0
         
+        # ✅ Convert all values to Python native types for JSON serialization
         return {
             'timestamp': str(pd.Timestamp.now()),
-            'total_features': total_features,
-            'drifted_features': drifted_features,
-            'drift_percentage': drift_pct,
-            'results': results,
-            'drift_detected': drift_pct > 10,
+            'total_features': int(total_features),
+            'drifted_features': int(drifted_features),
+            'drift_percentage': float(drift_pct),
+            'results': results,  # Already converted above
+            'drift_detected': bool(drift_pct > 10),
             'recommendation': 'Retrain recommended' if drift_pct > 15 else 'Monitor'
         }
     
@@ -103,5 +106,5 @@ class TrainingDriftDetector:
         """Save drift report to file"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'w') as f:
-            json.dump(report, f, indent=2)
+            json.dump(report, f, indent=2, default=str)  # ✅ Added default=str as fallback
         logger.info(f"Saved drift report: {output_path}")
