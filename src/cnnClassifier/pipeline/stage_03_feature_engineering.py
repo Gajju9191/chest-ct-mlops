@@ -14,7 +14,7 @@ class FeatureEngineeringPipeline:
     
     def main(self):
         try:
-            logger.info(f"🚀 Starting {STAGE_NAME}")
+            logger.info(f" Starting {STAGE_NAME}")
             
             config = ConfigurationManager()
             

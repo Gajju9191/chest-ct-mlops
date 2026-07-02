@@ -165,8 +165,8 @@ class FeatureEngineering:
     
     def reduce_dimensions(self, feature_df: pd.DataFrame) -> pd.DataFrame:
         """Apply PCA for dimensionality reduction"""
-        if self.config.get('use_pca', True):
-            self.pca = PCA(n_components=self.config.get('pca_components', 50))
+        if self.config.use_pca:
+            self.pca = PCA(n_components=self.config.pca_components)
             reduced = self.pca.fit_transform(feature_df)
             logger.info(f"PCA reduced dimensions from {feature_df.shape[1]} to {reduced.shape[1]}")
             logger.info(f"Explained variance: {self.pca.explained_variance_ratio_.sum():.2%}")
@@ -175,10 +175,17 @@ class FeatureEngineering:
     
     def run(self):
         """Run the full feature engineering pipeline"""
-        logger.info("🚀 Starting feature engineering...")
+        logger.info("Starting feature engineering...")
+        
+        # ✅ FIXED: Direct attribute access instead of .get()
+        data_path = Path(self.config.training_data)
+        
+        if not data_path.exists():
+            raise FileNotFoundError(f"Training data not found: {data_path}")
+        
+        logger.info(f"Using data from: {data_path}")
         
         # Build feature matrix
-        data_path = Path(self.config.get('training_data', 'artifacts/data_ingestion/Chest-CT-Scan-data'))
         feature_df, metadata_df = self.build_feature_matrix(data_path)
         
         # Scale features
@@ -188,25 +195,25 @@ class FeatureEngineering:
         feature_df_final = self.reduce_dimensions(feature_df_scaled)
         
         # Save features
-        output_dir = Path(self.config.get('features_dir', 'artifacts/features'))
+        output_dir = Path(self.config.root_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        feature_df_final.to_csv(output_dir / 'features.csv', index=False)
-        metadata_df.to_csv(output_dir / 'metadata.csv', index=False)
+        feature_df_final.to_csv(self.config.features_file, index=False)
+        metadata_df.to_csv(self.config.metadata_file, index=False)
         
         # Save scaler and PCA
-        joblib.dump(self.scaler, output_dir / 'scaler.pkl')
+        joblib.dump(self.scaler, self.config.scaler_file)
         if self.pca:
-            joblib.dump(self.pca, output_dir / 'pca.pkl')
+            joblib.dump(self.pca, self.config.pca_file)
         
         # Save feature stats
         stats = {
             'num_features': feature_df_final.shape[1],
             'num_samples': feature_df_final.shape[0],
-            'use_pca': self.config.get('use_pca', True),
+            'use_pca': self.config.use_pca,
             'explained_variance': self.pca.explained_variance_ratio_.sum() if self.pca else 1.0
         }
-        with open(output_dir / 'feature_stats.json', 'w') as f:
+        with open('artifacts/feature_stats.json', 'w') as f:
             json.dump(stats, f, indent=2)
         
         # Log to MLflow
@@ -217,5 +224,5 @@ class FeatureEngineering:
         except:
             pass
         
-        logger.info("✅ Feature engineering completed!")
+        logger.info("Feature engineering completed!")
         return feature_df_final
