@@ -1,5 +1,4 @@
 # src/cnnClassifier/pipeline/stage_05_model_trainer.py
-
 from cnnClassifier.config.configuration import ConfigurationManager
 from cnnClassifier.components.model_trainer import Training
 from cnnClassifier import logger
@@ -18,10 +17,7 @@ class ModelTrainingPipeline:
         # Step 1: Load base model
         training.get_base_model()
         
-        # ✅ UPDATED: Load features instead of images
-        training.load_features()  # New method for feature-based training
-        
-        # Step 2: Prepare data generators (now using features)
+        # Step 2: Prepare data generators (using raw images)
         training.train_valid_generator()
         
         # Step 3: Train the model

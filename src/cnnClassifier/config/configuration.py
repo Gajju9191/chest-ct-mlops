@@ -6,9 +6,7 @@ from cnnClassifier.entity.config_entity import (
     DataIngestionConfig,
     PrepareBaseModelConfig,
     TrainingConfig,
-    EvaluationConfig,
-    FeatureEngineeringConfig,  # ✅ NEW
-    TrainingDriftConfig       # ✅ NEW
+    EvaluationConfig
 )
 
 class ConfigurationManager:
@@ -43,60 +41,19 @@ class ConfigurationManager:
             params_classes=self.params.CLASSES
         )
     
-    # ✅ NEW: Feature Engineering Config
-    def get_feature_engineering_config(self) -> FeatureEngineeringConfig:
-        config = self.config.feature_engineering
-        create_directories([config.root_dir])
-        
-        # Get training data path
-        training_data = Path(self.config.data_ingestion.unzip_dir) / "Chest-CT-Scan-data"
-        
-        # Get feature engineering params
-        feature_params = self.params.FEATURE_ENGINEERING
-        
-        return FeatureEngineeringConfig(
-            root_dir=Path(config.root_dir),
-            features_file=Path(config.features_file),
-            metadata_file=Path(config.metadata_file),
-            scaler_file=Path(config.scaler_file),
-            pca_file=Path(config.pca_file),
-            training_data=training_data,
-            use_pca=feature_params.use_pca,
-            pca_components=feature_params.pca_components,
-            use_deep_features=feature_params.use_deep_features,
-            use_radiomic_features=feature_params.use_radiomic_features
-        )
-    
-    # ✅ NEW: Training Drift Config
-    def get_training_drift_config(self) -> TrainingDriftConfig:
-        config = self.config.training_drift
-        create_directories([config.root_dir])
-        
-        # Get drift params
-        drift_params = self.params.DRIFT_DETECTION
-        
-        return TrainingDriftConfig(
-            root_dir=Path(config.root_dir),
-            report_file=Path(config.report_file),
-            metrics_file=Path(config.metrics_file),
-            features_file=Path(self.config.feature_engineering.features_file),
-            threshold=drift_params.threshold,
-            test_type=drift_params.test_type
-        )
-    
     def get_training_config(self) -> TrainingConfig:
         training = self.config.training
         prepare_base_model = self.config.prepare_base_model
         
-        # ✅ UPDATED: Use features directory for training
-        training_data = Path(self.config.feature_engineering.root_dir)
+        # ✅ UPDATED: Use raw images for training
+        training_data = Path(self.config.data_ingestion.unzip_dir) / "Chest-CT-Scan-data"
         create_directories([Path(training.root_dir)])
         
         return TrainingConfig(
             root_dir=Path(training.root_dir),
             trained_model_path=Path(training.trained_model_path),
             updated_base_model_path=Path(prepare_base_model.updated_base_model_path),
-            training_data=training_data,  # Now points to features
+            training_data=training_data,  # Raw images path
             params_epochs=self.params.EPOCHS,
             params_batch_size=self.params.BATCH_SIZE,
             params_is_augmentation=self.params.AUGMENTATION,

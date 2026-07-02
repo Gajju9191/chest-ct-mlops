@@ -22,45 +22,22 @@ stages:
     outs:
       - artifacts/prepare_base_model
 
-  feature_engineering:
-    cmd: python src/cnnClassifier/pipeline/stage_03_feature_engineering.py
-    deps:
-      - src/cnnClassifier/pipeline/stage_03_feature_engineering.py
-      - artifacts/data_ingestion/Chest-CT-Scan-data
-      - artifacts/prepare_base_model/base_model.h5
-      - config/config.yaml
-      - params.yaml
-    params:
-      - FEATURE_ENGINEERING.use_pca
-      - FEATURE_ENGINEERING.pca_components
-      - FEATURE_ENGINEERING.use_deep_features
-      - FEATURE_ENGINEERING.use_radiomic_features
-    outs:
-      - artifacts/features
-    metrics:
-      - artifacts/feature_stats.json
+  # ✅ REMOVED: feature_engineering stage
+  # feature_engineering:
+  #   cmd: python src/cnnClassifier/pipeline/stage_03_feature_engineering.py
+  #   ...
 
-  # ✅ FIXED: training_drift - removed metrics that doesn't exist
-  training_drift:
-    cmd: python src/cnnClassifier/pipeline/stage_04_training_drift.py
-    deps:
-      - src/cnnClassifier/pipeline/stage_04_training_drift.py
-      - artifacts/features/features.csv
-      - config/config.yaml
-      - params.yaml
-    params:
-      - DRIFT_DETECTION.threshold
-      - DRIFT_DETECTION.test_type
-    outs:
-      - artifacts/drift_reports
-    # ✅ REMOVED: metrics: artifacts/drift_metrics.json
+  # ✅ REMOVED: training_drift stage (optional for now)
+  # training_drift:
+  #   cmd: python src/cnnClassifier/pipeline/stage_04_training_drift.py
+  #   ...
 
+  # ✅ UPDATED: Training - uses raw images directly
   training:
     cmd: python src/cnnClassifier/pipeline/stage_05_model_trainer.py
     deps:
       - src/cnnClassifier/pipeline/stage_05_model_trainer.py
-      - artifacts/features/features.csv
-      - artifacts/features/metadata.csv
+      - artifacts/data_ingestion/Chest-CT-Scan-data
       - artifacts/prepare_base_model
       - config/config.yaml
       - params.yaml
@@ -73,6 +50,7 @@ stages:
     outs:
       - artifacts/training/model.h5
 
+  # ✅ UPDATED: Evaluation
   evaluation:
     cmd: python src/cnnClassifier/pipeline/stage_06_model_evaluation.py
     deps:
