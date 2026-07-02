@@ -1,4 +1,5 @@
 # src/cnnClassifier/entity/config_entity.py
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,30 @@ class PrepareBaseModelConfig:
     params_include_top: bool
     params_weights: str
     params_classes: int
+
+# ✅ NEW: Feature Engineering Config
+@dataclass(frozen=True)
+class FeatureEngineeringConfig:
+    root_dir: Path
+    features_file: Path
+    metadata_file: Path
+    scaler_file: Path
+    pca_file: Path
+    training_data: Path
+    use_pca: bool
+    pca_components: int
+    use_deep_features: bool
+    use_radiomic_features: bool
+
+# ✅ NEW: Training Drift Config
+@dataclass(frozen=True)
+class TrainingDriftConfig:
+    root_dir: Path
+    report_file: Path
+    metrics_file: Path
+    features_file: Path
+    threshold: float
+    test_type: str
 
 @dataclass(frozen=True)
 class TrainingConfig:

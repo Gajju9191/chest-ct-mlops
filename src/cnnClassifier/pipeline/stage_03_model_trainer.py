@@ -1,6 +1,6 @@
+# src/cnnClassifier/pipeline/stage_05_model_trainer.py
 
-# src/cnnClassifier/pipeline/stage_03_model_training.py
-from cnnClassifier.config.configuration import ConfigurationManager  # Fixed: removed space
+from cnnClassifier.config.configuration import ConfigurationManager
 from cnnClassifier.components.model_trainer import Training
 from cnnClassifier import logger
 
@@ -18,7 +18,10 @@ class ModelTrainingPipeline:
         # Step 1: Load base model
         training.get_base_model()
         
-        # Step 2: Prepare data generators
+        # ✅ UPDATED: Load features instead of images
+        training.load_features()  # New method for feature-based training
+        
+        # Step 2: Prepare data generators (now using features)
         training.train_valid_generator()
         
         # Step 3: Train the model
@@ -29,11 +32,11 @@ class ModelTrainingPipeline:
 
 if __name__ == '__main__': 
     try:
-        logger.info(f"*******************")  # Fixed: removed space
+        logger.info(f"*******************")
         logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
         obj = ModelTrainingPipeline()
         obj.main()
         logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
     except Exception as e:
-        logger.exception(e)  # Fixed: removed space
+        logger.exception(e)
         raise e
